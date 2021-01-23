@@ -18,7 +18,7 @@ NodeMCU是一个开源的物联网平台，拥有开源，交互式，可编程�
 + NodeMCU(CH340)
 + 0.96英寸I^2^C接口OLED显示屏(SSD1306)
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/hardware.png" width = "387" height = "258" alt = "hardware" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/hardware.png" width = "387" height = "258" alt = "hardware" /></div>
 
 ###  软件
 
@@ -112,7 +112,7 @@ ArduinoJson库是解析JSON格式信息的第三方库，可以很简单地解�
 
 利用ArduinoJson官网的在线工具[ArduinoJson Assistant](https://arduinojson.org/v6/assistant/)，首先选择处理器、模式和输入类型，接着输入心知天气服务器返回的json数据，然后选择DynamicJsonDocument对象所占的空间(按照推荐即可)，最后点击生成程序。
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/arduinojson.png" width = "703" height = "286" alt = "arduinojson" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/arduinojson.png" width = "703" height = "286" alt = "arduinojson" /></div>
 
 生成的程序修改参数后选择需要的信息，可以直接使用(不同的ArduinoJson版本生成的程序会有些许不同)。
 
@@ -204,31 +204,31 @@ u8g2.drawXBMP(0, 0, 64, 64, Sunny);
 
 借助PS和画图等软件，制作好图标的单色位图(bmp格式)图片，将图片导入到PCtoLCD2002中，在字模选项中调整设置，然后生成字模，生成的字模可以直接复制到程序中使用。
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/pctolcd2002.png" width = "359" height = "215" alt = "pctolcd2002" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/pctolcd2002.png" width = "359" height = "215" alt = "pctolcd2002" /></div>
 
 ###  展示
 
 ####  启动界面
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/start.png" width = "230" height = "147" alt = "start" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/start.png" width = "230" height = "147" alt = "start" /></div>
 
 启动界面的汉字是图片取模制作成的，不是直接使用函数打印的。
 
 ####  连接WiFi界面
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/connectwifi.png" width = "432" height = "181" alt = "connectwifi" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/connectwifi.png" width = "432" height = "181" alt = "connectwifi" /></div>
 
 WiFi连接过程中 **“.”** 会逐个增加，以提示连接的过程，连接成功后会打印 **“Successfully!”** 提示连接成功。然后到下一个界面显示连接到的WiFi名称以及分配的IP地址。
 
 ####  时间日期界面
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/date.png" width = "243" height = "162" alt = "date" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/date.png" width = "243" height = "162" alt = "date" /></div>
 
 这里周几的计算用到了[蔡勒公式](https://zh.wikipedia.org/wiki/%E8%94%A1%E5%8B%92%E5%85%AC%E5%BC%8F)。从心知天气解析的Json数据里可以得到当天的日期，将这个日期的年、月、日取出，应用蔡勒公式即可解出当天为周几。时间日期界面显示10s后变为天气界面。
 
 ####  天气界面
 
-<img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/weather.png" width = "525" height = "184" alt = "weather" align=center />
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/weather_clock/illus/weather.png" width = "525" height = "184" alt = "weather" /></div>
 
 今天、明天、后天的天气信息轮流显示3s，显示信息包括天气图标，日期，天气文字、温度和湿度。
 
@@ -240,11 +240,11 @@ WiFi连接过程中 **“.”** 会逐个增加，以提示连接的过程，连
 
 这些小项目虽然功能简单甚至简陋，但是制作的背后都有许多新的知识。发现问题、分析问题然后解决问题，在互联网上几乎可以找到任何自己想要的资料。除了这些网站以外，还参考了很多的博客、文章、B站视频等，内容很多不再一一列举，非常感谢这些内容背后的创作者，分享知识、共同进步。
 
-> [Arduino官网](https://www.arduino.cc/)
-> [NodeMCU官网](https://www.nodemcu.com/)
-> [ArduinoJson官网](https://arduinojson.org/)
-> [U8g2库](https://github.com/olikraus/u8g2/)
-> [Ticker库](https://github.com/sstaub/Ticker/)
-> [NTPClient库](https://github.com/arduino-libraries/NTPClient)
-> [心知天气官网](https://www.seniverse.com/)
-> [太极创客官网](http://www.taichi-maker.com/)
+> [Arduino官网](https://www.arduino.cc/)<br/>
+> [NodeMCU官网](https://www.nodemcu.com/)<br/>
+> [ArduinoJson官网](https://arduinojson.org/)<br/>
+> [U8g2库](https://github.com/olikraus/u8g2/)<br/>
+> [Ticker库](https://github.com/sstaub/Ticker/)<br/>
+> [NTPClient库](https://github.com/arduino-libraries/NTPClient)<br/>
+> [心知天气官网](https://www.seniverse.com/)<br/>
+> [太极创客官网](http://www.taichi-maker.com/)<br/>

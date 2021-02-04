@@ -1,0 +1,14 @@
+NodeMCU_Back_end文件夹下是后端服务器代码及打包好的前端文件(data文件夹)。
+
+Vue_Front_end文件夹下是基于vue前端项目的代码，可以使用WebStorm打开、修改、重新打包(需要一点点前端的知识，其实我也没有学过前端，哈哈)。
+
+Video文件夹下是项目的演示视频。
+
+illus文件夹下是README文档引用的插图。
+
+LAN_microserver.ino是程序源文件，但还无法直接运行，需要稍作修改。
+修改的地方有：
+1、第27行。我将舵机信号线连接在GPIO2，但这里需要注意，板载LED连接的引脚也是GPIO2。我这么做是因为我的舵机三根线是连在一块的，不能分开，信号线、VCC、GND刚好连在NodeMCU的D4(GPIO2)、3V、G上 。所以直接运行时会发生操作LED亮度舵机跟着动的情况，所以建议更改舵机的信号线。
+2、第51~53行。添加的WiFi名称和密码，NodeMCU在运行时会连接这几个WiFi中信号最强的。
+
+程序修改完后上传至NodeMCU，再通过Arduino IDE将data文件夹下的文件上传至NodeMCU。运行程序，在串口监视器观察NodeMCU的IP，将电脑连接至与NodeMCU同一个WIFI，在浏览器输入栏输入NodeMCU的IP，就可以访问这个微型服务器啦。

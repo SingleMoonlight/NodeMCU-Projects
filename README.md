@@ -295,35 +295,35 @@ WiFi连接过程中 **“.”** 会逐个增加，以提示连接的过程，连
 ```javascript
 //发送请求
 this.$axios.get('/changeLedState',
-		{
-			params: {
-				//参数
+	{
+	    params: {
+		//参数
                 LedState: this.LedState
-			}
-		})
+	}
+    })
     .then(response => {
     	//处理请求成功
     	//如果响应数据为Success
-		if (response.data === "Success") {
-			this.$message({
-				showClose: false,
-                message: '操作成功！',
-                type: 'success',
-                center: true
-            });
+	if (response.data === "Success") {
+		this.$message({
+			showClose: false,
+                	message: '操作成功！',
+                	type: 'success',
+                	center: true
+           	});
         } else {
-			this.$message({
-				showClose: false,
-				message: '操作失败！',
-				type: 'error',
-				center: true
-			});
-		}
+		this.$message({
+			showClose: false,
+			message: '操作失败！',
+			type: 'error',
+			center: true
+		});
+	}
     })
     .catch(err => {
     	//处理请求失败
         console.log(err);
-	});
+    });
 ```
 
 项目使用post请求上传文件的实例。
@@ -346,37 +346,37 @@ let config = {
 //发送请求
 this.$axios.post(url, fd, config)
     .then(response=>{
-		//处理请求成功
+	//处理请求成功
     	//如果响应数据为Success
     	if(response.data === "Success"){
         	//提示上传成功
-			this.$message({
-				showClose: false,
-				message: '上传成功！',
-				type: 'success',
-    			center: true
-			});
-		}
-    	//否则提示上传失败
-    	else {
-			this.$message({
-				showClose: false,
-				message: '上传失败！',
-				type: 'error',
-				center: true
-            });
-        }
-	})
-    .catch(err=>{
-    	//处理请求失败
-		console.log(err);
 		this.$message({
 			showClose: false,
-			message: '网络错误！',
+			message: '上传成功！',
+			type: 'success',
+    			center: true
+		});
+	}
+    	//否则提示上传失败
+    	else {
+		this.$message({
+			showClose: false,
+			message: '上传失败！',
 			type: 'error',
 			center: true
-		});
+                });
+        }
+    })
+    .catch(err=>{
+    	//处理请求失败
+	console.log(err);
+	this.$message({
+		showClose: false,
+		message: '网络错误！',
+		type: 'error',
+		center: true
 	});
+    });
 ```
 
 ####  前后端数据交互

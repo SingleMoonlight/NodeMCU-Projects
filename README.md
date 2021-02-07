@@ -3,6 +3,7 @@
 NodeMCU是一个开源的物联网平台，拥有开源，交互式，可编程，低成本，简单，智能，WI-FI硬件等特点，可以在Arduino IDE中进行编程开发，对新手十分友好。这是本人使用NodeMCU开发的一些小项目，**仅为自己一边学习一边总结记录**。
 
 + [weather-clock](#weather-clock)
++ [LAN_microserver](#LAN_microserver)
 + [loading](#loading)
 + [参考资料](#参考资料)
 
@@ -232,19 +233,483 @@ WiFi连接过程中 **“.”** 会逐个增加，以提示连接的过程，连
 
 今天、明天、后天的天气信息轮流显示3s，显示信息包括天气图标，日期，天气文字、温度和湿度。
 
+## LAN_microserver
+
+### 概述
+
+这是一个运行在NodeMCU上的微服务器，它工作在局域网(LAN)中。NodeMCU模块连接WiFi后，启动网站服务，响应局域网内其他客户端(浏览器)的请求。
+
+不同于传统意义上专于提供计算和应用服务、执行大量任务的服务器，它的算力十分有限，不过它仍然可以执行一些简单的任务。比如展示丰富多彩的Web网页，进行文件的上传和下载管理。除此之外，还可以利用局域网进行TCP通信，在网页上向NodeMCU发送控制指令(HTTP请求)，让NodeMCU 执行相应的任务，实现远程控制。
+
+### 硬件
+
++ NodeMCU(CH340)
++ SG90舵机
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/LAN_microserver/illus/hardware.png" width = "523" height = "271" alt = "hardware" /></div>
+
+### 软件
+
++ Arduino IDE
++ WebStorm 2019.3.3
++ ESP8266FS闪存文件上传插件
+
+### 设计
+
+####  前端
+
+鉴于项目是以NodeMCU为主体的服务端开发，主要目的是学习使用NodeMCU，且前端的知识体系很庞杂，开发使用的框架与方法不尽相同，因此在这里这些内容不做过多的展开。
+
+#####  框架
+
+本项目的前端部分是基于Vue构建的，使用了Element的组件库。
+
+1. Vue
+
+> Vue.js（读音 /vjuː/, 类似于 view） 是一套构建用户界面的渐进式框架。
+> Vue 只关注视图层， 采用自底向上增量开发的设计。
+> Vue 的目标是通过尽可能简单的 API 实现响应的数据绑定和组合的视图组件。
+
+2. Element
+
+> Element，一套为开发者、设计师和产品经理准备的基于 Vue 2.0 的桌面端组件库。
+
+##### Web界面
+
+1. 首页
+
+程序成功运行起来后，在浏览器地址栏输入NodeMCU的IP地址即可进入首页。首页简要介绍了项目的大致情况，点击按钮可进入控制面板页面。
+
+2. 控制面板
+
+控制面板包含了项目的各个功能模块：板载LED控制、信息交互、文件管理、舵机控制、模拟引脚读数。
+
+#####  请求发送
+
+请求的发送是本项目**前端部分的核心**，前端请求的发送使用了Axios，相当于是Vue中的ajxs，提供给用户异步获取调用接口的组件库。
+
+> Axios，基于 Promise 的 HTTP 客户端，可以工作于浏览器中，也可以在 node.js 中使用。
+
+项目使用get请求改变LED状态的实例。
+
+```javascript
+//发送请求
+this.$axios.get('/changeLedState',
+		{
+			params: {
+				//参数
+                LedState: this.LedState
+			}
+		})
+    .then(response => {
+    	//处理请求成功
+    	//如果响应数据为Success
+		if (response.data === "Success") {
+			this.$message({
+				showClose: false,
+                message: '操作成功！',
+                type: 'success',
+                center: true
+            });
+        } else {
+			this.$message({
+				showClose: false,
+				message: '操作失败！',
+				type: 'error',
+				center: true
+			});
+		}
+    })
+    .catch(err => {
+    	//处理请求失败
+        console.log(err);
+	});
+```
+
+项目使用post请求上传文件的实例。
+
+```javascript
+//文件对象
+let fileObj = param.file;
+//FormData对象
+let fd = new FormData();
+//添加数据(名称/值对) 
+fd.append('UploadFile', fileObj);
+//URL
+let url = '/uploadFile';
+let config = {
+		headers: {
+            //表单数据类型
+    		'Content-Type': 'multipart/form-data'
+        	}
+        };
+//发送请求
+this.$axios.post(url, fd, config)
+    .then(response=>{
+		//处理请求成功
+    	//如果响应数据为Success
+    	if(response.data === "Success"){
+        	//提示上传成功
+			this.$message({
+				showClose: false,
+				message: '上传成功！',
+				type: 'success',
+    			center: true
+			});
+		}
+    	//否则提示上传失败
+    	else {
+			this.$message({
+				showClose: false,
+				message: '上传失败！',
+				type: 'error',
+				center: true
+            });
+        }
+	})
+    .catch(err=>{
+    	//处理请求失败
+		console.log(err);
+		this.$message({
+			showClose: false,
+			message: '网络错误！',
+			type: 'error',
+			center: true
+		});
+	});
+```
+
+####  前后端数据交互
+
+前后端数据交互事实上是一个很复杂的问题，牵扯到很多计算机网络方面的知识，不过在开发的过程中底层的内容大多都没有深究，这里也只做一些简单的说明。
+
+#####  数据交互原理
+
+无论前端基于什么框架，做Web开发，前后端的数据交互都是很重要的一个环节，这个过程是通过HTTP请求的方式实现的。HTTP消息有两种类型： 请求(requests)——由客户端发送用来触发一个服务器上的动作；响应(responses)——来自服务器的应答。前端发送请求url给服务器，服务器响应前端的请求，请求和响应的过程都可以携带信息，以此来实现前后端的数据交互。
+
+#####  HTTP请求
+
+> 当浏览器向Web服务器发出请求时，它向服务器传递了一个数据块，也就是请求信息，它是由客户端发出的消息，用来使服务器执行动作，它包括起始行、请求头以及请求体。
+
+起始行：起始行包含请求方法、请求地址URL和HTTP协议版本三个部分。
+
+Headers：请求头为请求报文添加了一些附加信息。
+
+Body：请求正文中可以包含客户端提交的信息。
+
+#####  HTTP响应
+
+> HTTP响应代表服务器向客户端回送的数据，它包括一个状态行、响应头以及响应体。 
+
+状态行：HTTP 响应的起始行被称作状态行，包含协议版本、状态码和状态文本三个部分。
+
+Headers：响应头用于描述服务器以及响应数据的基本信息。
+
+Body：响应的数据，用于存放需要返回给客户端的数据信息。
+
+#####  请求方法
+
+| 请求方法 | 含义                                                         |
+| -------- | ------------------------------------------------------------ |
+| GET      | 请求指定的页面信息，并返回实体主体。                         |
+| HEAD     | 类似于 GET 请求，只不过返回的响应中没有具体的内容，用于获取报头 |
+| POST     | 向指定资源提交数据进行处理请求（例如提交表单或者上传文件）。数据被包含在请求体中。POST 请求可能会导致新的资源的建立和/或已有资源的修改。 |
+| PUT      | 从客户端向服务器传送的数据取代指定的文档的内容。             |
+| DELETE   | 请求服务器删除指定的页面。                                   |
+| CONNECT  | HTTP/1.1 协议中预留给能够将连接改为管道方式的代理服务器。    |
+| OPTIONS  | 允许客户端查看服务器的性能。                                 |
+| TRACE    | 回显服务器收到的请求，主要用于测试或诊断。                   |
+| PATCH    | 是对 PUT 方法的补充，用来对已知资源进行局部更新 。           |
+
+HTTP请求方法有很多种，这里只介绍一下项目中使用到的也是最常用的两种请求方法：
+
+1. GET方法
+
+GET方法是默认的HTTP请求方法，GET方法要求服务器将URL定位的资源放在响应报文的数据部分，发送给客户端。使用GET方法时，请求参数和对应的值附加在URL后面向Web服务器发送，但传递参数长度受限制，而且使用GET方法来提交表单数据存在着安全隐患。
+
+2. POST方法
+
+POST方法主要是向Web服务器提交表单数据，尤其信息比较多的时候。POST方法将请求参数封装在HTTP请求数据中，对传输的数据大小没有限制。通过POST方法提交表单数据时，数据不是作为URL请求的一部分而是作为标准数据传送给Web服务器，这就克服了GET方法中的信息无法保密和数据量太小的缺点。
+
+#####  状态码
+
+| 分类 | 描述                                           |
+| ---- | ---------------------------------------------- |
+| 1**  | 信息，服务器收到请求，需要请求者继续执行操作   |
+| 2**  | 成功，操作被成功接收并处理                     |
+| 3**  | 重定向，需要进一步的操作以完成请求             |
+| 4**  | 客户端错误，请求包含语法错误或无法完成请求     |
+| 5**  | 服务器错误，服务器在处理请求的过程中发生了错误 |
+
+HTTP状态码由三个十进制数字组成，第一个十进制数字定义了状态码的类型，后两个数字没有分类的作用。HTTP状态码共分为5种类型，本项目中使用到的也是常用的HTTP状态码：
+
+1. 200——请求成功
+
+2. 404——请求的资源(网页等)不存在
+3. 500——服务器错误
+
+#####  URL
+
+> 在WWW上，每一信息资源都有统一的且在网上唯一的地址，该地址就叫*URL*（Uniform Resource Locator，统一资源定位器），它是WWW的统一资源定位标志，就是指网络地址。
+
+组成：**<协议>://<主机>:<端口>/<路径>**，端口和路径有时可以省略，HTTP默认端口号为80。
+
+参数：以 **"?"** 开始，格式为 **"name=value"** ，如果存在多个参数，则参数之间用 **"&"** 隔开，后端在收到前端的请求时，可以解析出URL参数。
+
+项目中控制板载LED亮的请求URL，其中LedState=true就是参数。
+
+```c++
+http://192.168.0.110/changeLedState?LedState=true
+```
+
+####  后端
+
+##### 网络服务器
+
+收到前端的请求URL，后端服务器需要做出正确的响应。以NodeMCU作为服务器，这里用到一个很重要的库—— **ESP8266WebServer库** 。
+
+> ESP8266WebServer库用于HTTP协议通讯。通过ESP8266WebServer库，可以使用ESP8266开发板建立网络服务器，从而允许其它网络设备通过HTTP协议访问并实现信息交流。
+
+ESP8266WebServer库有很多函数，下面是项目中使用到的部分库函数：
+
+1. ESP8266WebServer
+
+建立ESP8266WebServer对象，在程序中利用此对象来调用其他函数，实现网络服务器的功能。
+
+```c++
+//建立esp8266网站服务器对象，端口号80
+ESP8266WebServer esp8266_server(80);
+```
+
+2. begin
+
+启动NodeMCU开发板所建立的网络服务器。
+
+```c++
+//启动网站服务
+esp8266_server.begin();
+```
+
+3. handleClient
+
+检查有没有客户端设备通过网络向服务器发送HTTP请求，起到监听的作用，建议将该函数放在loop函数中。
+
+```c++
+//处理客户端请求
+esp8266_server.handleClient();
+```
+
+4. on
+
+客户端向服务器发送HTTP请求时，利用on函数来设置HTTP请求的回调函数。
+
+```c++
+//处理浏览器对灯开关控制的请求
+esp8266_server.on("/changeLedState", handleChangeLedState);
+```
+
+5. onNotFound
+
+客户端向服务器发送HTTP请求时，利用onNotFound函数来设置HTTP请求无效地址的回调函数。
+
+```c++
+//处理其他网络请求
+esp8266_server.onNotFound(handleUserRequest);
+```
+
+6. send
+
+户端向服务器发送HTTP请求时，服务器可使用该函数向客户端发送响应信息，包括响应状态码、相应内容类型(可选参数)、响应内容(可选参数)。
+
+```c++
+esp8266_server.send(200, "text/plain", "Success");
+```
+
+7. arg
+
+获取客户端向服务器发送请求URL中的指定参数的数值。
+
+```c++
+//取出请求URL的LedState字段
+String LedstateStr = esp8266_server.arg("LedState");
+```
+
+8. upload
+
+用于NodeMCU开发板所建立的服务器处理客户端的文件上传请求。
+
+```c++
+//处理文件上传
+HTTPUpload& upload = esp8266_server.upload();
+```
+
+9. uri
+
+获取客户端向服务器请求的资源路径。
+
+```c++
+//用户请求资源
+String reqResource = esp8266_server.uri();
+```
+
+
+#####  请求处理
+
+实现不同的功能，客户端会发送不同的HTTP请求，这些请求的URL不同。利用on函数，针对不同的URL编写每个功能的回调函数，这是本项目**后端部分的核心**。为了使代码整洁且便于管理，将所有请求放在handleRequest函数里，然后在setup函数里调用handleRequest函数。
+
+```c++
+void handleRequest() {
+  //处理浏览器对灯开关控制的请求
+  esp8266_server.on("/changeLedState", handleChangeLedState);
+  //处理浏览器对灯亮度调节的请求
+  esp8266_server.on("/changeLedBrightness", handleChangeLedBrightness);
+  //处理浏览器对灯状态选择的请求
+  esp8266_server.on("/selectLedMode", handleSelectLedMode);
+  //处理浏览器信息交互的请求
+  esp8266_server.on("/interactInfo", handleInteractInfo);
+  //处理浏览器获取模拟引脚读数的请求
+  esp8266_server.on("/getAnalogPinValue", handleGetAnalogPinValue);
+  //处理浏览器上传文件的请求
+  esp8266_server.on("/uploadFile",      // 如果客户端通过upload页面
+                    HTTP_POST,          // 向服务器发送文件(请求方法POST)
+                    respondOK,          // 则回复状态码 200 给客户端
+                    handleFileUpload);  // 并且运行处理文件上传函数
+  //处理浏览器获取可供下载文件信息的请求
+  esp8266_server.on("/loadFiles", handleLoadFiles);
+  //处理浏览器下载文件的请求
+  esp8266_server.on("/downloadFile", handleDownloadFile);
+  //处理浏览器控制舵机的请求
+  esp8266_server.on("/changeServoAngle", handleChangeServoAngle);
+  //处理其他网络请求
+  esp8266_server.onNotFound(handleUserRequest);
+}
+```
+
+例如当客户端发出对LED灯开关控制的请求(/changeLedState)时，程序会执行handleChangeLedState函数，只需要在这个函数里编写对灯开关的控制逻辑代码即可实现远程控制。
+
+```c++
+void handleChangeLedState() {
+  //取出请求URL的LedState字段
+  String LedstateStr = esp8266_server.arg("LedState");
+  Serial.print("LedState = ");
+  Serial.println(LedstateStr);
+  //如果是true，则开灯
+  if (LedstateStr == "true") {
+    analogWrite(LED_BUILTIN, 0);
+  }
+  //如果是false，则关灯
+  if (LedstateStr == "false") {
+    analogWrite(LED_BUILTIN, 1023);
+  }
+  //向客户端发送200响应信息(成功)
+  respondOK();
+}
+```
+
+#####  文件管理
+
+NodeMCU有一个4M的闪存(SPIFFS)，用于存放系统文件、程序代码和一些其他的数据，将打包好的前端网页文件上传至闪存里，开启网络服务器后通过网络请求的方式读取网页文件，就形成了真正意义上的WebServer。
+
+既然是要做一个服务器，那么文件管理的功能就必不可少了，这里包括了文件的上传和下载。NodeMCU的闪存空间很小，为了便于管理，将文件上传和下载使用的文件集中放置在/updownload目录下。
+
+文件上传有下面三个步骤：
+
+1. 在SPIFFS中建立文件
+
+```c++
+fsUploadFile = SPIFFS.open(filename, "w");
+```
+
+2. 向SPIFFS文件写入浏览器发来的文件数据
+
+```c++
+fsUploadFile.write(upload.buf, upload.currentSize);
+```
+
+3. 将文件关闭
+
+```c++
+fsUploadFile.close();
+```
+
+文件的下载有以下两个过程：
+
+1. 客户端要选择可供下载的文件。在这一过程中，服务器将/updownload目录下所有文件的文件名以Json格式发送给客户端，客户端解析后变成一个个可供选择的条目。
+
+2. 服务器将客户端选择的文件数据发送给客户端。在这一过程中，服务器获取客户端选择的文件名。然后在闪存中查找该文件，将该文件以流的形式传回浏览器。
+
+```c++
+void handleDownloadFile() {
+  //取出请求URL的SelectFile字段
+  String SelectFileStr = esp8266_server.arg("SelectFile");
+  //下载的文件名
+  Serial.print("SelectFile = ");
+  Serial.println(SelectFileStr);
+
+  //获取文件类型
+  String contentType = getContentType(SelectFileStr);
+
+  //找到文件
+  if (SPIFFS.exists(SelectFileStr)) {
+    //只读打开
+    File file = SPIFFS.open(SelectFileStr, "r");
+    //以流的形式传回浏览器
+    esp8266_server.streamFile(file, contentType);
+    //关闭文件
+    file.close();
+    //向客户端发送200响应信息(成功)
+    respondOK();
+  }
+  //没有找到文件
+  else{
+    esp8266_server.send(404, "text/plain", "404 Not Found");  
+  }
+}
+```
+
+### 展示
+
+#### 网站首页
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/LAN_microserver/illus/index.png" alt = "index" /></div>
+
+#### 控制面板
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/LAN_microserver/illus/control.png" alt = "control" /></div>
+
+#### 后台信息
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/LAN_microserver/illus/backend_info.png" alt = "backend_info" /></div>
+
+#### 视频展示
+
+[视频](https://github.com/SingleMoonlight/NodeMCU-projects/tree/main/LAN_microserver/Video)
+
 ## loading
 
 继续学习更新......
 
 ## 参考资料
 
-这些小项目虽然功能简单甚至简陋，但是制作的背后都有许多新的知识。发现问题、分析问题然后解决问题，在互联网上几乎可以找到任何自己想要的资料。除了这些网站以外，还参考了很多的博客、文章、B站视频等，内容很多不再一一列举，非常感谢这些内容背后的创作者，分享知识、共同进步。
+这些小项目虽然功能简单甚至简陋，但是制作的背后对我来说都有许多新的知识。发现问题、分析问题然后解决问题，在互联网上几乎可以找到任何自己想要的资料。除了这些网站以外，还参考了很多的博客、文章、B站视频等，内容很多不再一一列举，非常感谢这些内容背后的创作者，分享知识、共同进步。
 
-> [Arduino官网](https://www.arduino.cc/)<br/>
-> [NodeMCU官网](https://www.nodemcu.com/)<br/>
-> [ArduinoJson官网](https://arduinojson.org/)<br/>
-> [U8g2库](https://github.com/olikraus/u8g2/)<br/>
-> [Ticker库](https://github.com/sstaub/Ticker/)<br/>
-> [NTPClient库](https://github.com/arduino-libraries/NTPClient)<br/>
-> [心知天气官网](https://www.seniverse.com/)<br/>
-> [太极创客官网](http://www.taichi-maker.com/)<br/>
+### 工具类网站
+
+> [Arduino官网](https://www.arduino.cc/)<br>
+> [NodeMCU官网](https://www.nodemcu.com/)<br>
+> [ArduinoJson官网](https://arduinojson.org/)<br>
+> [Vue.js官网](https://cn.vuejs.org/)<br>
+> [Element官网](https://element.eleme.cn/#/zh-CN)<br>
+> [Axios官网](http://www.axios-js.com/)<br>
+> [心知天气官网](https://www.seniverse.com/)<br>
+
+### 知识类网站
+
+> [太极创客官网](http://www.taichi-maker.com/)<br>
+> [菜鸟教程官网](https://www.runoob.com/)<br>
+
+### libraries
+
+> [U8g2库](https://github.com/olikraus/u8g2/)<br>
+> [Ticker库](https://github.com/sstaub/Ticker/)<br>
+> [NTPClient库](https://github.com/arduino-libraries/NTPClient)<br>

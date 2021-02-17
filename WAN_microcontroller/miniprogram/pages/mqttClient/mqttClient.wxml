@@ -1,0 +1,40 @@
+<view class="cards">
+  <view class="card">
+    <view class="title">状态</view>
+    <view class="aRow">
+      <view class="radioText">在线</view>
+      <radio checked="{{checkedOnline}}" disabled="true"></radio>
+      <view class="radioText">离线</view>
+      <radio checked="{{checkedOutline}}" disabled="true"></radio>
+      <button class="btn" size="mini" bindtap="connectMqtt">连接</button>
+    </view>
+  </view>
+  <view class="card">
+    <view class="title">订阅</view>
+    <view class="text">主题</view>
+    <view class="aRow">
+      <input class="input" value="{{subTopic}}" bindinput="getSubTopic"/>
+      <button class="btn" size="mini" bindtap="subTopics">订阅</button>
+    </view>
+    <view class="text">消息</view>
+    <view class="aRow">
+      <scroll-view class="scroll" style="height: 100px" scroll-y="true" scroll-top="{{scrollTop}}">
+        {{receiveInfo}}
+      </scroll-view>
+
+    </view>
+  </view>
+  <view class="card">
+    <view class="title">发布</view>
+    <view class="text">主题</view>
+    <view class="aRow"> 
+      <input class="input" value="{{pubTopic}}" bindinput="getPubTopic"/>
+      <button class="btn" size="mini" bindtap="publishMsg">发布</button>
+    </view>
+    <view class="text">消息</view>
+    <view class="aRow">
+      <textarea class="textarea" maxlength="-1" style="height: 100px" value="{{pubMsg}}" bindinput="getPubMsg">{{sendInfo}}</textarea>
+    </view>
+  </view>
+</view>
+

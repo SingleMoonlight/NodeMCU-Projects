@@ -1,0 +1,103 @@
+.cards {
+  margin-top: -10px;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 100%;
+  padding: 0;
+  margin-top: 10px;
+  min-height:50px; 
+  box-shadow: 0px 1px 2px #b9b9b9;
+}
+
+.title {
+  color: #000000;
+  margin-top: 5px;
+  margin-left: 5px;
+  font-weight: bold;
+}
+
+.text {
+  width: 10%;
+  margin-top: 10px;
+  margin-left: 5px;
+  color: #666;
+  font-size: small;
+}
+
+.radioText {
+  margin-top: 3px;
+  margin-right: 20px;
+  color: #666;
+  font-size: small;
+}
+
+.btn {
+  float: right;
+  margin-right: 10px;
+  background-color: #40a0ff6e;
+}
+
+.aRow {
+  padding: 0;
+  margin-left: 5px;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+.scroll {
+  margin-top: 10px;
+  margin-right: 10px;
+  width: 100%;
+  font-size: small;
+  border: 1px solid #b9b9b9
+}
+
+.textarea {
+  margin-top: 10px;
+  margin-right: 10px;
+  width: 100%;
+  font-size: small;
+  border: 1px solid #b9b9b9
+}
+
+.input {
+  min-width: 75%;
+  font-size: small;
+  border-bottom: 1px solid #b9b9b9
+}
+
+/* 以下三个样式对radio的设置使用了 https://blog.csdn.net/qq_41617704/article/details/80973966 
+博客中的内容 */
+radio .wx-radio-input.wx-radio-input-checked::before{
+  border-radius: 50%;
+  width: 20rpx; 
+  height: 20rpx; 
+  text-align: center;
+  font-size:0rpx; /* 对勾大小 去掉 */
+  background-color: #ffffff;
+  transform:translate(-50%, -50%) scale(1);
+  -webkit-transform:translate(-50%, -50%) scale(1);
+}
+
+radio {
+  margin-right: 20px;
+  border-radius: 50%;
+  width: 40rpx;/* 最好是4的倍数，不然会不在中间 */
+  height: 40rpx;
+  font-size: 0;/* 让边框重合 */
+}
+radio .wx-radio-input{
+   border-radius: 50%;
+   width: 40rpx;
+   height: 40rpx; 
+   border: none;/* 替换边框（隐藏原有边框） */
+}

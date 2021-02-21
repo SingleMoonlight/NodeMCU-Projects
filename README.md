@@ -685,6 +685,385 @@ void handleDownloadFile() {
 
 [视频](https://github.com/SingleMoonlight/NodeMCU-projects/tree/main/LAN_microserver/Video)
 
+## WAN_microcontroller
+
+### 概述
+
+NodeMCU模块连接WiFi后，作为一个客户端连接MQTT服务器；手机通过微信小程序连接到相同的服务器上，作为另一个客户端。手机和NodeMCU不需要处于同一局域网下，两者之间的通信不受时间和空间的限制。NodeMCU读取连接的温湿度传感器的信息，手机客户端订阅该信息，可以实现远程监控；NodeMCU订阅手机发布的命令主题，可以实现远程控制。
+
+### 硬件
+
++ NodeMCU(CH340)
++ DHT11
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/hardware.png" width = "480" height = "320" alt = "hardware" /></div>
+
+### 软件
+
++ Arduino IDE
++ 微信开发者工具
++ MQTT.fx
+
+### 设计
+
+####  MQTT服务器
+
+#####  MQTT概念
+
+> 消息队列遥测传输（Message Queuing Telemetry Transport）是ISO 标准（ISO/IEC PRF 20922）下基于发布 (Publish)/订阅 (Subscribe)范式的消息协议，可视为“资料传递的桥梁”。它工作在 TCP/IP协议族上，是为硬件性能低下的远程设备以及网络状况糟糕的情况下而设计的发布/订阅型消息协议。
+
+#####  MQTT基本原理
+
+![MQTT: publish / subscribe architecture](https://mqtt.org/assets/img/mqtt-publish-subscribe.png)
+
+在MQTT协议的通信过程中有两个角色，分别是服务器(Broker)和客户端(Client)。服务器的任务是将某一主题(Topic)的信息推送给所有订阅(Subscribe)了该主题的客户端；客户端既可以向服务器发布(Publish)信息，也可以从服务器获取信息。
+
+用一个通俗的例子来讲，把B站看成MQTT服务器，up主和观众就是客户端。我们关注一个up主就是订阅一个主题，up更新一个视频就是发布一条信息，关注的up主更新后我们就会收到B站的推送，然后就可以在动态看见up主更新的内容。要注意的是，我们不会收到没有关注的up主的消息推送，我们可以关注多个up主，只要他们更新，就一定会收到通知。
+
+#####  MQTT服务器选择
+
+使用MQTT服务器的途径有两种，一种是自己搭建服务器(需要有公网IP)，一种是使用现有平台提供的MQTT服务器，如阿里云、华为云等，使用这些公用服务器需要注册账号、收费等。
+
+当然仅为了学习和测试可以使用公用的、免费的MQTT服务器，本项目使用的MQTT服务器是 **Mosquitto** ，它支持基于Websocket的MQTT协议。
+
+test.mosquitto.org
+
+> This is test.mosquitto.org. It hosts a publicly available Eclipse Mosquitto MQTT server/broker. This server is provided as a service for the community to do testing, but it is also extremely useful for testing the server. This means that it will often be running unreleased or experimental code and may not be as stable as you might hope.
+
+MQTT服务器地址：test.mosquitto.org
+TCP 端口：1883
+TCP/TLS 端口：8883
+WebSockets 端口：8080
+Websocket/TLS 端口：8081
+
+####  NodeMCU客户端
+
+#####  温湿度信息读取
+
+DHT11模块
+
+> DHT11数字温湿度传感器是一款含有已校准数字信号输出的温湿度复合传.感器。它应用专用的数字模块采集技术和温湿度传感技术，确保产品具有极高的可靠性与卓越的长期稳定性。
+
+工作电压范围：3.3V-5.5V
+工作电流：平均 0.5mA
+输出：单总线数字信号
+测量范围：湿度 20~90％RH，温度 0~50℃
+精度：湿度±5%，温度±2℃
+分辨率：湿度 1%，温度 1℃
+
+dht11库
+
+> DHT11 Temperature & Humidity Sensor library for Arduino.
+
+DHT 系列模块有许多非常成熟的库，不同的库使用方法不尽相同。本项目中使用的是一个比较简单的、专门针对DHT11的库，温湿度信息的获取方法如下：
+
+```c++
+#include <dht11.h>
+
+//建立dht11传感器对象
+dht11 DHT11;
+//读取传感器信息，传感器连接引脚(GPIO14 D5)
+DHT11.read(14);
+//温度信息
+String tempMessageString = String(DHT11.temperature);
+//湿度信息
+String humMessageString = String(DHT11.humidity); 
+```
+
+#####  功能实现关键
+
+PubSubClient库
+
+> Arduino Client for MQTT. This library provides a client for doing simple publish/subscribe messaging with a server that supports MQTT.
+
+库结构如下：
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/pubsubclient.png" alt = "pubsubclient" /></div>
+
+各个函数的详细功能及使用方法不再展开描述，下面只说明项目中的具体功能实现。
+
+#####  程序实现
+
+1. 配置客户端连接信息
+
+```c++
+//MQTT服务器地址
+const char* mqttServer = "test.mosquitto.org";
+//建立WiFiClient对象
+WiFiClient wifiClient;
+//建立mqttClient对象
+PubSubClient mqttClient(wifiClient);             
+
+//设置MQTT服务器和端口号(这里使用的是普通的TCP端口)
+mqttClient.setServer(mqttServer, 1883);
+//设置收到信息后的回调函数
+mqttClient.setCallback(receiveCallback);
+```
+
+2. 连接MQTT服务器
+
+```c++
+//设置客户端ID(尽量独一无二，避免重复)
+String clientId = "NodeMCU-" + WiFi.macAddress();
+//成功连接MQTT服务器
+if (mqttClient.connect(clientId.c_str())) { 
+  Serial.println("MQTT Server Connected");
+} 
+//连接失败
+else {
+  Serial.print("MQTT server connect failed!");
+} 
+```
+
+3. 订阅主题
+
+```c++
+//订阅LED状态控制主题(尽量独一无二，以免收到使用同一服务器客户端的无用信息)
+String ledStateTopicString = WiFi.macAddress() + "/control/ledState";
+char ledStateTopic[ledStateTopicString.length() + 1];  
+strcpy(ledStateTopic, ledStateTopicString.c_str());
+//如果订阅成功，输出订阅信息
+if(mqttClient.subscribe(ledStateTopic)){
+  Serial.println("Subscrib Topic: " + ledStateTopicString);
+} else {
+  Serial.print("Subscribe fail!");
+} 
+```
+
+4. 发布消息
+
+```c++
+//建立温度发布主题
+String tempTopicString = WiFi.macAddress() + "/monitor/temperature";
+char tempTopic[tempTopicString.length() + 1];  
+strcpy(tempTopic, tempTopicString.c_str());
+  
+//建立温度发布信息
+String tempMessageString = String(DHT11.temperature); 
+char tempMsg[tempMessageString.length() + 1];   
+strcpy(tempMsg, tempMessageString.c_str());
+  
+//向温度主题发布信息
+if(mqttClient.publish(tempTopic, tempMsg)){
+  Serial.println("Publish Topic: " + tempTopicString);
+  Serial.println("Temperature message: " + tempMessageString);  
+} else {
+  Serial.println("Temperature message publish failed!"); 
+}
+```
+
+5. 接收消息
+
+```c++
+void receiveCallback(char* topic, byte* payload, unsigned int length) {
+  //订阅的主题
+  Serial.println("Receive message from topic: " + String(topic));
+  //该主题的消息
+  String message = "";
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  Serial.println("Message: " + message);
+  //消息的长度
+  Serial.println("Message Length: " + String(length) + " Bytes");
+
+  //根据主题以及消息内容执行响应的动作
+  //LED状态控制主题
+  if(String(topic) == "48:3F:DA:9D:09:BA/control/ledState"){
+    controlLedState(message);
+  }
+  //LED亮度调节主题
+  if(String(topic) == "48:3F:DA:9D:09:BA/control/ledBrightness"){
+    controlLedBrightness(message);
+  }
+}
+```
+
+####  微信小程序客户端
+
+#####  功能实现关键
+
+WebSocket
+
+> WebSocket是一种网络传输协议，可在单个TCP连接上进行**全双工通信**，位于OSI模型的应用层。
+>
+> WebSocket使得客户端和服务器之间的数据交换变得更加简单，允许服务端主动向客户端推送数据。在WebSocket API中，浏览器和服务器只需要完成一次握手，两者之间就可以创建持久性的连接，并进行双向数据传输。
+
+在服务器选择时介绍了选择 **Mosquitto** 作为服务器的原因，有很重要的一点是它支持基于WebSocket的MQTT协议，而浏览器中连接MQTT服务器正是通过WebSocket来实现的。如果让微信小程序来作为MQTT的客户端，接受NodeMCU的消息或者向NodeMCU发送信息，那么MQTT over WebSocket自然成了最合理的途径，这里使用了一个很有名的第三方库 **MQTT.js** 。
+
+MQTT.js
+
+> MQTT.js is a client library for the MQTT protocol, written in JavaScript for node.js and the browser.
+
+MQTT.js 是 JavaScript 编写的，实现了 MQTT 协议客户端功能的模块，可以在浏览器 和 Node.js 环境中使用。由于 JavaScript 单线程特性，MQTT.js 是全异步 MQTT 客户端，MQTT.js 支持 MQTT 与 MQTT over WebSocket，在不同运行环境支持的度如下：
+
+1. 浏览器环境：MQTT over WebSocket（包括微信小程序、支付宝小程序等定制浏览器环境）
+2. Node.js 环境：MQTT、MQTT over WebSocket
+
+不同环境里除了少部分连接参数不同，其他 API 均是相同的。将[mqtt.js文件](https://unpkg.com/mqtt@4.1.0/dist/mqtt.js)直接复制到小程序项目中就可以使用了，这里连接使用的版本是4.1.0，2.18.8版本在微信开发者工具模拟器中可以连接成功，但是在真机上无法连接，也有可能是本人测试手机(Android)的问题。
+
+#####  程序实现
+
+1. 配置客户端连接信息
+
+在设置连接服务器地址时，根据不同的协议指定使用的连接方式：
+
+ws：未加密 WebSocket 连接
+wss：加密 WebSocket 连接
+mqtt：未加密 TCP 连接
+mqtts：加密 TCP 连接
+wxs：微信小程序连接
+alis：支付宝小程序连接
+
+```javascript
+//引用mqtt.js库
+var mqtt = require('../../utils/mqtt');
+//定义客户端对象
+var client = null;
+
+//服务器地址
+const connectUrl = 'wxs://test.mosquitto.org'
+//连接配置
+const options = {
+      clientId: '573b79e3bae7431b8f2e7fb50a0ed2ee',
+      keepalive: 60,
+      clean: true,
+      port: 8081,	 //端口(这里使用的是Websocket端口)
+      protocolVersion: 4 //MQTT v3.1.1
+}
+```
+
+2. 连接MQTT服务器
+
+```javascript
+const client = mqtt.connect(connectUrl, options)
+
+//网络错误
+client.on('error', (error) => {
+    ...
+});
+//重连
+client.on('reconnect', (error) => {
+    ...
+});
+//连接成功
+client.on('connect', (e) => {
+    ...
+});
+```
+
+3. 订阅主题
+
+```javascript
+//this.data.subTopic为订阅的主题
+client.subscribe(this.data.subTopic, {
+	qos: 0 //服务质量等级
+}, function(err) {
+	if (!err) {
+		wx.showToast({
+			title: '订阅成功',
+			mask: true,
+			icon: 'success',
+			duration: 1000
+		});
+	}else{
+		wx.showToast({
+			title: '订阅失败',
+			mask: true,
+			icon: 'none',
+			duration: 1000
+		});
+	}
+});
+```
+
+4. 发布消息
+
+```javascript
+//this.data.pubTopic为发布消息的主题，this.data.pubMsg为发布的消息
+client.publish(this.data.pubTopic, this.data.pubMsg, function(err) {
+	if (!err) {
+		wx.showToast({
+			title: '发布成功',
+			mask: true,
+			icon: 'success',
+			duration: 1000
+		});
+	}else{
+		wx.showToast({
+			title: '发布失败',
+			mask: true,
+			icon: 'none',
+			duration: 1000
+		});
+	}
+});
+```
+
+5. 接收消息
+
+```javascript
+//topic为消息主题，messsage为消息
+client.on('message', function (topic, message) {
+    that.setData({
+        //更新消息框的内容
+        receiveInfo: that.data.receiveInfo + topic.toString() + ": " + message.toString() + "\n",
+        //更新竖向滚动条位置到最新的消息(每条消息的高度设为20)
+        scrollTop: that.data.scrollTop + 20
+    });
+});
+```
+
+####  MQTT.fx客户端
+
+#####  MQTT.fx介绍
+
+> MQTT.fx 是目前主流的 MQTT 桌面客户端，它支持 Windows、 Mac、Linux 操作系统，可以快速验证是否可与 IoT Cloud 进行连接，并发布或订阅消息。
+
+在NodeMCU客户端和小程序开发过程中，可以使用MQTT.fx对两个客户端的功能进行测试，项目最终并未使用该客户端，其主要功能就是测试。
+
+#####  MQTT.fx使用
+
+1. 配置客户端
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/setclient.png" alt = "setclient" /></div>
+
+2. 发布消息
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/pubbymqttfx.png" alt = "pubbymqttfx" /></div>
+
+3. 订阅主题
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/subbymqttfx.png" alt = "subbymqttfx" /></div>
+
+### 展示
+
+####  NodeMCU串口输出
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/backend_info_1.png" alt = "backend_info_1" /></div>
+
+连接WiFi后连接MQTT服务器，订阅LED状态和亮度控制主题，每隔10s向温湿度主题发布消息。
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/backend_info_2.png" alt = "backend_info_2" /></div>
+
+接受来自其他客户端对LED状态和亮度控制主题的消息。
+
+####  微信小程序
+
+#####  微信开发者工具模拟器界面
+
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/testonwechatdevtools.png" width = "280" height = "500" alt = "testonwechatdevtools" /></div>
+
+#####  真机界面
+
+
+<div align = center><img src="https://github.com/SingleMoonlight/NodeMCU-projects/blob/main/WAN_microcontroller/illus/testionphone.jpg" width = "280" height = "591" alt = "testionphone" /></div>
+
+####  视频展示
+
+[视频](https://github.com/SingleMoonlight/NodeMCU-projects/tree/main/WAN_microcontroller/Video)
+
 ## loading
 
 继续学习更新......
@@ -695,12 +1074,17 @@ void handleDownloadFile() {
 
 ### 工具类网站
 
-> [Arduino官网](https://www.arduino.cc/)<br>
-> [NodeMCU官网](https://www.nodemcu.com/)<br>
 > [ArduinoJson官网](https://arduinojson.org/)<br>
-> [Vue.js官网](https://cn.vuejs.org/)<br>
 > [Element官网](https://element.eleme.cn/#/zh-CN)<br>
 > [Axios官网](http://www.axios-js.com/)<br>
+> [Eclipse Mosquitto官网](http://www.mosquitto.org/)<br>
+
+### 应用类网站
+
+> [Arduino官网](https://www.arduino.cc/)<br>
+> [NodeMCU官网](https://www.nodemcu.com/)<br>
+> [Vue.js官网](https://cn.vuejs.org/)<br>
+> [MQTT官网](https://mqtt.org/)<br>
 > [心知天气官网](https://www.seniverse.com/)<br>
 
 ### 知识类网站
@@ -712,4 +1096,7 @@ void handleDownloadFile() {
 
 > [U8g2库](https://github.com/olikraus/u8g2/)<br>
 > [Ticker库](https://github.com/sstaub/Ticker/)<br>
+> [ArduinoJSON库](https://github.com/bblanchon/ArduinoJson)<br>
 > [NTPClient库](https://github.com/arduino-libraries/NTPClient)<br>
+> [PubSubClient库](https://github.com/knolleary/pubsubclient)<br>
+> [MQTT.js库](https://github.com/mqttjs/MQTT.js)<br>
